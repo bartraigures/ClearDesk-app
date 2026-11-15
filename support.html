@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support: Clear Desk</title>
+
+<link rel="icon" href="img/icon.png">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="wrap top">
+<a class="brand" href="./"><img src="img/icon.png" alt="" width="36" height="36">Clear Desk</a>
+<nav><a href="./">Home</a><a href="privacy.html">Privacy</a></nav>
+</header>
+
+<main class="wrap prose">
+<h1>Support</h1>
+
+<h2>What do I need?</h2>
+<ul>
+<li>Your own self-hosted osTicket, reachable over https. Tested releases are listed on the <a href="./">home page</a>.</li>
+<li>An agent (staff) account. Customer accounts cannot sign in.</li>
+</ul>
+
+<h2>I can't sign in</h2>
+<ul>
+<li>Enter the address of your helpdesk, for example <code>support.example.com</code>. The app adds <code>https://</code> and finds the agent panel itself.</li>
+<li>Plain <code>http</code> addresses are refused.</li>
+<li>Check the same username and password work in a browser at your helpdesk's <code>/scp</code> page. Several failed attempts can lock the account for a while; that is your helpdesk's setting.</li>
+<li>Single sign-on (OAuth, SAML) and authenticator-app codes are not supported. Emailed verification codes are.</li>
+</ul>
+
+<h2>It keeps asking for a verification code</h2>
+<p>With two-factor sign-in, your helpdesk asks for a new emailed code whenever its session has to be renewed. How long a session lasts is set by your helpdesk's administrator.</p>
+
+<h2>The Sort button offers different choices on different queues</h2>
+<p>The app shows the sorts your helpdesk offers for that queue. Some queues allow sorting by column; others only offer the helpdesk's named sorts, such as "Priority + Due Date".</p>
+
+<h2>Did the customer get an email?</h2>
+<ul>
+<li><strong>Reply</strong> and <strong>Resolve, Email customer</strong> send your message to the customer.</li>
+<li><strong>Note</strong>, <strong>Resolve, No email</strong>, and changing status or assignee from the menu do not email the customer.</li>
+</ul>
+
+<h2>The dashboard is empty or missing</h2>
+<p>Your agent account needs permission to see the dashboard in osTicket. Ask your administrator.</p>
+
+<h2>A dashboard number doesn't match the list it opens</h2>
+<p>The dashboard counts events during the period, for example tickets created this week. The list shows tickets as they stand now. The two will not always agree.</p>
+
+<h2>My widgets are out of date</h2>
+<p>Widgets show what the app last saved, with the time. Opening the app refreshes them. iOS decides when background refreshes run.</p>
+
+<h2>It says "Offline. Showing saved tickets."</h2>
+<p>The app could not reach your helpdesk and is showing saved copies. You can read them, but replying and other actions need a connection. Tap Retry when you are back online.</p>
+
+<h2>Something stopped working after my helpdesk was upgraded</h2>
+<p>Clear Desk works through the agent panel's pages, and an osTicket upgrade can change them. Please get in touch with your osTicket version and what stopped working.</p>
+
+<h2>Subscription</h2>
+<ul>
+<li>Manage or cancel in Settings, your name, Subscriptions.</li>
+<li>If you have subscribed on another device, tap Restore purchases on the subscription screen.</li>
+</ul>
+
+<h2>Get in touch</h2>
+<p>Email <a href="mailto:silas.slack@gmail.com">silas.slack@gmail.com</a>.</p>
+
+<p>Clear Desk is an independent app. It is not affiliated with, endorsed by or supported by Enhancesoft or the osTicket project. osTicket is a trademark of Enhancesoft LLC.</p>
+</main>
+
+<footer class="wrap foot">
+<span>Clear Desk</span>
+<a href="privacy.html">Privacy</a>
+<a href="support.html">Support</a>
+</footer>
+</body>
+</html>
