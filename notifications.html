@@ -78,7 +78,17 @@
 <p><strong>Check PHP has the curl extension.</strong> By SSH, <code>php -m</code> lists the extensions; <code>curl</code> should be among them. The command-line PHP can differ from the one the web server uses, so if in doubt ask your hosting company. Most PHP installs include curl.</p>
 </li>
 <li>
-<p><strong>Find osTicket's folder on the server.</strong> This is the folder that holds osTicket's own files, including the folders <code>scp</code> and <code>include</code>. In this guide it is written as <code>/path/to/osticket</code>. Inside <code>include</code> there is a folder called <code>plugins</code>. That is where the plugin goes. If there is no <code>plugins</code> folder inside <code>include</code>, create one.</p>
+<p><strong>Find osTicket's folder on the server.</strong> This is the folder that holds osTicket's own files, including the folders <code>scp</code> and <code>include</code>. In this guide it is written as <code>/path/to/osticket</code>.</p>
+<p>If you do not know where it is, sign in by SSH and run:</p>
+<pre><code>sudo find / -name ost-config.php -not -path "/proc/*" 2&gt;/dev/null</code></pre>
+<p>It prints a line such as:</p>
+<pre><code>/var/www/html/osticket/include/ost-config.php</code></pre>
+<p>The folder you want is the part before <code>/include</code>. In that example it is <code>/var/www/html/osticket</code>.</p>
+<p>If it prints more than one line, the server holds more than one copy of osTicket (an old version or a backup, perhaps). Find out which one the website uses with whichever of these matches your web server:</p>
+<pre><code>grep -R "DocumentRoot" /etc/apache2/sites-enabled/
+grep -R "root " /etc/nginx/sites-enabled/</code></pre>
+<p>Use the copy inside the folder that command names. Installing into the wrong copy does no harm, but the plugin will not appear in the admin panel.</p>
+<p>Inside <code>include</code> there is a folder called <code>plugins</code>. That is where the plugin goes. If there is no <code>plugins</code> folder inside <code>include</code>, create one.</p>
 </li>
 </ol>
 
@@ -125,14 +135,32 @@
 <li>
 <p>Download the plugin into a folder called <code>cleardesk</code>. The word <code>cleardesk</code> at the end of this command sets the folder name:</p>
 <pre><code>git clone https://github.com/bartraigures/ClearDeskPlugin.git cleardesk</code></pre>
+<p>If it answers "Permission denied", the folder belongs to another user. Run the same command with <code>sudo</code> in front:</p>
+<pre><code>sudo git clone https://github.com/bartraigures/ClearDeskPlugin.git cleardesk</code></pre>
+<p>If it answers that <code>git</code> is not found, download and unpack the ZIP on the server instead:</p>
+<pre><code>sudo curl -L -o cleardesk.zip https://github.com/bartraigures/ClearDeskPlugin/archive/refs/heads/main.zip
+sudo unzip cleardesk.zip
+sudo mv ClearDeskPlugin-main cleardesk
+sudo rm cleardesk.zip</code></pre>
 </li>
 <li>
 <p>Check the files are there:</p>
-<pre><code>ls -l cleardesk</code></pre>
-<p>You should see <code>plugin.php</code>, <code>config.php</code> and <code>cleardesk.php</code> among the files listed.</p>
+<pre><code>ls -l . cleardesk</code></pre>
+<p>This lists the <code>plugins</code> folder and then the new <code>cleardesk</code> folder. You should see something like:</p>
+<pre><code>drwxr-sr-x 3 root www-data  4096 Nov 16 14:01 cleardesk
+
+cleardesk:
+-rw-r--r-- 1 root www-data 13609 Nov 16 14:01 cleardesk.php
+-rw-r--r-- 1 root www-data  3543 Nov 16 14:01 config.php
+-rw-r--r-- 1 root www-data 17984 Nov 16 14:01 LICENSE
+-rw-r--r-- 1 root www-data   865 Nov 16 14:01 plugin.php
+-rw-r--r-- 1 root www-data  5361 Nov 16 14:01 README.md</code></pre>
+<p>Check that <code>plugin.php</code>, <code>config.php</code> and <code>cleardesk.php</code> are all listed.</p>
 </li>
 <li>
-<p>Make sure the files can be read by the user the web server runs as. If you ran <code>git clone</code> as a different user, give the folder the same owner and permissions as your other osTicket files.</p>
+<p>Make sure the web server can read the files. In the listing above, each line starts with the permissions, then the owner (<code>root</code>) and the group (<code>www-data</code>). The web server usually runs as <code>www-data</code>. The files are fine if the third <code>r</code> from the left is present (<code>-rw-r--r--</code>), which means everyone may read them, or if the group is the web server's and the group may read.</p>
+<p>If the files are not readable by the web server, or you want the owner to match your other osTicket files, set the owner and group to the same as those files. For example:</p>
+<pre><code>sudo chown -R www-data:www-data cleardesk</code></pre>
 </li>
 </ol>
 
