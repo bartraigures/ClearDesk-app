@@ -11,17 +11,18 @@
 <body>
 <header class="wrap top">
 <a class="brand" href="./"><img src="img/icon.png" alt="" width="36" height="36">Clear Desk</a>
-<nav><a href="./">Home</a><a href="support.html">Support</a></nav>
+<nav><a href="./">Home</a><a href="notifications.html">Notifications</a><a href="support.html">Support</a></nav>
 </header>
 
 <main class="wrap prose">
 <h1>Privacy policy</h1>
-<p class="dated">Last updated 15 November 2026.</p>
+<p class="dated">Last updated 16 November 2026.</p>
 
 <p>Clear Desk is an app for iPhone and iPad that lets a support agent work with their own osTicket helpdesk. This page says what happens to your data when you use it.</p>
 
 <h2>The short version</h2>
 <p>Clear Desk has no account with us and no server of ours. We receive nothing from the app: no analytics, no crash reports, no usage data, no identifiers, and no ticket content. Everything goes between your device and the helpdesk address you enter.</p>
+<p>The one exception is optional. If your helpdesk's administrator installs the Clear Desk notifications plugin, your helpdesk (not the app) sends a short message to a delivery service we run, so that Apple can show you a notification. That message holds no ticket content. It is described in full <a href="#notifications">below</a>.</p>
 
 <h2>What the app stores, and where</h2>
 <ul>
@@ -34,6 +35,18 @@
 
 <h2>Network requests</h2>
 <p>The app connects only to the helpdesk address you enter, over https. It signs in to the agent panel as you would in a browser. Your helpdesk sees what it sees from any agent session, and its administrator's own policies apply to what it records.</p>
+
+<h2 id="notifications">Instant notifications</h2>
+<p>From version 1.1, instant notifications are available if your helpdesk's administrator has installed the free Clear Desk notifications plugin on the osTicket server, and you switch them on in the app. Without the plugin, or with the switch off, none of this happens.</p>
+<ul>
+<li><strong>On your device.</strong> When you switch notifications on, iOS gives the app a device token: the address Apple uses to deliver a notification to this app on this device. The app sends the token, and the kinds of notification you chose, to your helpdesk only.</li>
+<li><strong>On your helpdesk.</strong> The plugin stores, for each device: your agent id, the device token, and the kinds you chose.</li>
+<li><strong>What leaves your helpdesk.</strong> For each event, the plugin sends our delivery service only: the kind of event (<code>new</code>, <code>reply</code>, <code>assigned</code> or <code>note</code>), the ticket's number and internal id, and the device tokens of the agents to tell. For example: <code>{"v":1,"event":"reply","ticket":{"id":123,"number":"374502"},"devices":[{"token":"…","env":"production"}]}</code></li>
+<li><strong>What is never sent.</strong> The subject, any message text, the customer's name or email address, any agent's name, and your helpdesk's address.</li>
+<li><strong>Where it goes.</strong> The delivery service is run by Clear Desk's developer and hosted on AWS in Ireland. It passes the notification to Apple, which shows it on your device. It is needed because Apple only accepts notifications for an app from that app's publisher. The delivery service keeps no record of the requests it receives.</li>
+<li><strong>What can still be inferred.</strong> The delivery service and Apple can tell that a server at a certain IP address had an event on a ticket with a certain number at a certain time.</li>
+</ul>
+<p>A notification shows the ticket's number and a short fixed text such as "The customer replied". It can appear on your Lock Screen. To stop notifications, switch them off in the app's Settings; your helpdesk's administrator can also turn the plugin off. The <a href="notifications.html">notifications guide</a> has the details.</p>
 
 <h2>Subscriptions</h2>
 <p>If you subscribe to Clear Desk Full, the purchase is handled by Apple. We do not receive your name, payment details or Apple Account. Apple provides us with sales totals that do not identify you.</p>

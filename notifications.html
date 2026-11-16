@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notifications: Clear Desk</title>
+<meta name="description" content="How a helpdesk administrator installs the free Clear Desk notifications plugin on a self-hosted osTicket, step by step.">
+<link rel="icon" href="img/icon.png">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="wrap top">
+<a class="brand" href="./"><img src="img/icon.png" alt="" width="36" height="36">Clear Desk</a>
+<nav><a href="./">Home</a><a href="support.html">Support</a><a href="privacy.html">Privacy</a></nav>
+</header>
+
+<main class="wrap prose">
+<h1>Instant notifications</h1>
+<p class="dated">A guide for helpdesk administrators. Last updated 16 November 2026.</p>
+
+<p>Clear Desk can tell an agent's iPhone or iPad about a new ticket, a customer reply, an assignment or a colleague's note within a few seconds. For this, the helpdesk's administrator installs a small free plugin on the osTicket server. This page explains every step.</p>
+<p>Without the plugin there are no instant notifications. The rest of the app works the same with or without it.</p>
+
+<h2>Contents</h2>
+<ol>
+<li><a href="#about">What this is</a></li>
+<li><a href="#need">What you need</a></li>
+<li><a href="#before">Before you start</a></li>
+<li><a href="#files">Part 1: put the files on the server</a></li>
+<li><a href="#admin">Part 2: switch it on in the admin panel</a></li>
+<li><a href="#app">Part 3: each agent switches it on in the app</a></li>
+<li><a href="#test">Part 4: test it</a></li>
+<li><a href="#who">Who gets told</a></li>
+<li><a href="#sent">What is sent, and where</a></li>
+<li><a href="#trouble">Troubleshooting</a></li>
+<li><a href="#remove">Updating, turning off and removing</a></li>
+</ol>
+
+<h2 id="about">What this is</h2>
+<ul>
+<li>The plugin is called <strong>Clear Desk notifications</strong>. The current version is 0.1.</li>
+<li>It runs inside your osTicket. When something happens on a ticket, it works out which agents should be told and sends a short message, with no ticket content, to a delivery service. The delivery service passes it to Apple, and Apple shows it on the agent's device.</li>
+<li>The plugin is free and open source, under the GPL v2 licence. You can read all of it before you install it: <a href="https://github.com/bartraigures/ClearDeskPlugin">github.com/bartraigures/ClearDeskPlugin</a>.</li>
+<li>Notifications arrive in Clear Desk from version 1.1. They are part of the paid plan, <strong>Clear Desk Full</strong>. Each agent who wants them needs that plan. The plugin itself costs nothing.</li>
+<li>A notification has the title "Ticket #374502" (with the ticket's number) and one of these texts: "New ticket", "The customer replied", "Assigned to you" or "A colleague added a note". Tapping it opens that ticket in the app.</li>
+</ul>
+
+<h2 id="need">What you need</h2>
+<ul>
+<li>A self-hosted osTicket, release 1.17 or 1.18. The plugin has been checked on 1.17, 1.18.2 and 1.18.4.</li>
+<li>The hosted osTicket service (SupportSystem) cannot add plugins, so this does not work there.</li>
+<li>PHP with the curl extension, on the server that runs osTicket.</li>
+<li>The server must be able to make outbound HTTPS requests (port 443) to the delivery service at <code>ng4e4cc4icqx5f45jn4ssql74e0jjcbn.lambda-url.eu-west-1.on.aws</code>. A firewall that blocks outgoing connections must allow this one.</li>
+<li>An osTicket administrator account.</li>
+<li>A way to put files on the server: SFTP or FTP, your hosting company's file manager, or SSH.</li>
+<li>For each agent: an iPhone or iPad with Clear Desk version 1.1 or later, and the <strong>Clear Desk Full</strong> plan.</li>
+</ul>
+
+<h2 id="before">Before you start</h2>
+<ol>
+<li>
+<p><strong>Take a backup.</strong> The plugin runs inside your helpdesk, so back up the osTicket database and files first, as you would before any upgrade.</p>
+</li>
+<li>
+<p><strong>Use a test copy if you can.</strong> If you have a test copy of your helpdesk, install the plugin there first and work through this guide on it. Then repeat the steps on the live helpdesk.</p>
+</li>
+<li>
+<p><strong>Check your osTicket version.</strong> Sign in to the agent panel as an administrator, click <strong>Admin Panel</strong>, and look at the version shown on the <strong>Dashboard</strong> tab under <strong>Information</strong>. It must be 1.17 or 1.18.</p>
+</li>
+<li>
+<p><strong>Check the server can reach the delivery service.</strong> If you have SSH access, run this on the osTicket server:</p>
+<pre><code>curl -s https://ng4e4cc4icqx5f45jn4ssql74e0jjcbn.lambda-url.eu-west-1.on.aws/v1/health</code></pre>
+<p>It should print exactly:</p>
+<pre><code>{"ok":true}</code></pre>
+<p>If it prints nothing, or an error, the server cannot reach the delivery service. Ask whoever manages the server or firewall to allow outbound HTTPS to that host. Without it the plugin cannot send anything. If you have no SSH access, ask your hosting company to run the check for you.</p>
+</li>
+<li>
+<p><strong>Check PHP has the curl extension.</strong> By SSH, <code>php -m</code> lists the extensions; <code>curl</code> should be among them. The command-line PHP can differ from the one the web server uses, so if in doubt ask your hosting company. Most PHP installs include curl.</p>
+</li>
+<li>
+<p><strong>Find osTicket's folder on the server.</strong> This is the folder that holds osTicket's own files, including the folders <code>scp</code> and <code>include</code>. In this guide it is written as <code>/path/to/osticket</code>. Inside <code>include</code> there is a folder called <code>plugins</code>. That is where the plugin goes. If there is no <code>plugins</code> folder inside <code>include</code>, create one.</p>
+</li>
+</ol>
+
+<h2 id="files">Part 1: put the files on the server</h2>
+<p>At the end of this part, the plugin's files must be in a folder called <code>cleardesk</code> inside osTicket's <code>include/plugins</code> folder, like this:</p>
+<pre><code>/path/to/osticket/include/plugins/cleardesk/plugin.php
+/path/to/osticket/include/plugins/cleardesk/config.php
+/path/to/osticket/include/plugins/cleardesk/cleardesk.php</code></pre>
+<p>All three <code>.php</code> files are required. The folder name must be exactly <code>cleardesk</code>, in lower case. Choose one of the two routes below.</p>
+
+<h3>Route A: download the ZIP and upload it</h3>
+<ol>
+<li>
+<p>On your own computer, download the ZIP file: <a href="https://github.com/bartraigures/ClearDeskPlugin/archive/refs/heads/main.zip">github.com/bartraigures/ClearDeskPlugin/archive/refs/heads/main.zip</a>.</p>
+</li>
+<li>
+<p>Unzip it. You get a folder called <code>ClearDeskPlugin-main</code>. Inside it you should see five files: <code>plugin.php</code>, <code>config.php</code>, <code>cleardesk.php</code>, <code>README.md</code> and <code>LICENSE</code>.</p>
+</li>
+<li>
+<p>Rename the folder from <code>ClearDeskPlugin-main</code> to <code>cleardesk</code>.</p>
+<p>Check you have not ended up with a folder inside a folder. Opening <code>cleardesk</code> must show the five files straight away, not another folder.</p>
+</li>
+<li>
+<p>Connect to the server with your SFTP or FTP program, or open your hosting company's file manager. Go to <code>/path/to/osticket/include/plugins</code>.</p>
+</li>
+<li>
+<p>Upload the whole <code>cleardesk</code> folder into <code>plugins</code>.</p>
+<p>You should now see <code>include/plugins/cleardesk</code> on the server, and inside it <code>plugin.php</code>, <code>config.php</code> and <code>cleardesk.php</code>. <code>README.md</code> and <code>LICENSE</code> are not needed by osTicket but do no harm.</p>
+</li>
+<li>
+<p>Make sure the files can be read by the user the web server runs as. If your other osTicket files are readable by the web server, give the new folder and files the same owner and permissions.</p>
+</li>
+</ol>
+
+<h3>Route B: by SSH, with git</h3>
+<ol>
+<li>
+<p>Sign in to the server by SSH.</p>
+</li>
+<li>
+<p>Go to osTicket's plugins folder:</p>
+<pre><code>cd /path/to/osticket/include/plugins</code></pre>
+</li>
+<li>
+<p>Download the plugin into a folder called <code>cleardesk</code>. The word <code>cleardesk</code> at the end of this command sets the folder name:</p>
+<pre><code>git clone https://github.com/bartraigures/ClearDeskPlugin.git cleardesk</code></pre>
+</li>
+<li>
+<p>Check the files are there:</p>
+<pre><code>ls -l cleardesk</code></pre>
+<p>You should see <code>plugin.php</code>, <code>config.php</code> and <code>cleardesk.php</code> among the files listed.</p>
+</li>
+<li>
+<p>Make sure the files can be read by the user the web server runs as. If you ran <code>git clone</code> as a different user, give the folder the same owner and permissions as your other osTicket files.</p>
+</li>
+</ol>
+
+<h2 id="admin">Part 2: switch it on in the admin panel</h2>
+<p>These steps and the wording on screen are from osTicket 1.18. Two separate switches matter: the plugin's <strong>Status</strong> must be <strong>Active</strong>, and its instance's <strong>Status</strong> must be <strong>Enabled</strong>. If either is off, nothing is sent.</p>
+<ol>
+<li>
+<p>In a web browser, sign in to your helpdesk's agent panel (the <code>/scp</code> address, for example <code>https://support.example.com/scp</code>) with an administrator account.</p>
+</li>
+<li>
+<p>Click <strong>Admin Panel</strong>, near the top right of the page.</p>
+</li>
+<li>
+<p>Click the <strong>Manage</strong> tab, then <strong>Plugins</strong>.</p>
+<p>You should see a page titled "Installed Plugins".</p>
+</li>
+<li>
+<p>Click <strong>Add New Plugin</strong>.</p>
+<p>You should see a page titled "Install a new plugin". It lists <strong>Clear Desk notifications</strong> with an <strong>Install</strong> button beside it. If it is not listed, stop here and see <a href="#not-listed">The plugin is not listed</a> under Troubleshooting.</p>
+</li>
+<li>
+<p>Click <strong>Install</strong> beside <strong>Clear Desk notifications</strong>.</p>
+<p>You should see a green bar saying "Successfully installed a plugin". The page heading reads "Plugins &gt; Clear Desk notifications ( Disabled )". Below it there are two tabs: <strong>Plugin</strong> and <strong>Instances (0)</strong>.</p>
+</li>
+<li>
+<p>On the <strong>Plugin</strong> tab, set <strong>Status</strong> to <strong>Active</strong>.</p>
+</li>
+<li>
+<p>Click <strong>Save Changes</strong>.</p>
+<p>You should see a bar saying "Plugin Updated Successfully". The heading now ends "( Active )".</p>
+</li>
+<li>
+<p>Click the <strong>Instances</strong> tab.</p>
+</li>
+<li>
+<p>Click <strong>Add New Instance</strong>.</p>
+<p>You should see the Add New Instance form. It has two tabs: <strong>Instance</strong> and <strong>Config</strong>.</p>
+</li>
+<li>
+<p>On the <strong>Instance</strong> tab:</p>
+<ul>
+<li>In <strong>Name</strong>, type a name, for example <code>Clear Desk</code>. The name is only for you.</li>
+<li>Set <strong>Status</strong> to <strong>Enabled</strong>.</li>
+</ul>
+</li>
+<li>
+<p>Click the <strong>Config</strong> tab.</p>
+<ul>
+<li>Leave <strong>Delivery service address</strong> as it is. Do not change it.</li>
+<li>Under "Tell agents about" there are four lists, each set to On or Off. They decide which kinds of event the helpdesk sends at all. The suggested settings are:
+<ul>
+<li><strong>New tickets</strong>: On</li>
+<li><strong>Customer replies</strong>: On</li>
+<li><strong>Assignments</strong>: On</li>
+<li><strong>Internal notes</strong>: Off</li>
+</ul>
+</li>
+<li>A kind you set to Off here is never sent to anyone, whatever agents choose in the app. Agents see it greyed out.</li>
+</ul>
+</li>
+<li>
+<p>Click <strong>Add Instance</strong>.</p>
+<p>You should see a bar saying "Plugin Added Successfully". The <strong>Instances</strong> tab now shows one instance.</p>
+</li>
+<li>
+<p>Check both switches once more: the heading should end "( Active )", and the instance should be <strong>Enabled</strong>.</p>
+</li>
+</ol>
+<p>The administrator's part is done. Nothing is sent until at least one agent switches notifications on in the app.</p>
+<p>The first time an agent's device registers, the plugin creates one database table, <code>ost_cleardesk_device</code>. If your helpdesk uses a different table prefix than <code>ost_</code>, the table has your prefix instead. The plugin makes no other changes to the database.</p>
+
+<h2 id="app">Part 3: each agent switches it on in the app</h2>
+<p>Each agent who wants notifications does this once on each iPhone or iPad. They need Clear Desk version 1.1 or later, signed in to your helpdesk.</p>
+<ol>
+<li>
+<p>Open Clear Desk and go to the <strong>Queues</strong> screen.</p>
+</li>
+<li>
+<p>Tap the gear button to open <strong>Settings</strong>.</p>
+</li>
+<li>
+<p>Find the <strong>Notifications</strong> section.</p>
+<p>If it says "Needs the free Clear Desk plugin on your helpdesk. Ask your administrator.", the app cannot find the plugin. See <a href="#app-says">The app says the plugin is needed</a> under Troubleshooting.</p>
+</li>
+<li>
+<p>Switch on <strong>Instant notifications</strong>.</p>
+<p>On the free plan, this opens the subscription screen instead. Notifications need <strong>Clear Desk Full</strong>.</p>
+</li>
+<li>
+<p>When iOS asks whether Clear Desk may send notifications, tap <strong>Allow</strong>.</p>
+</li>
+<li>
+<p>Four switches now appear:</p>
+<ul>
+<li><strong>New tickets</strong> (starts on)</li>
+<li><strong>Customer replies</strong> (starts on)</li>
+<li><strong>Assigned to me</strong> (starts on)</li>
+<li><strong>Notes from colleagues</strong> (starts off)</li>
+</ul>
+<p>Turn each on or off as you prefer. A kind the administrator has turned off in the plugin is greyed out and marked "Switched off by your administrator".</p>
+</li>
+</ol>
+
+<h2 id="test">Part 4: test it</h2>
+<p>You are never told about something you did yourself, so the test needs a ticket from someone else.</p>
+<ol>
+<li>
+<p>Make sure at least one agent has finished Part 3, and keep that agent's phone to hand. It can be locked.</p>
+</li>
+<li>
+<p>Have someone who is not signed in as an agent open a new ticket: send an email to the helpdesk's address, or use the helpdesk's web form for customers. You can do this yourself from a private browser window or a personal email address.</p>
+</li>
+<li>
+<p>Within a few seconds the phone should show a notification: "Ticket #…" with the text "New ticket".</p>
+<p>If the ticket went into a department the agent cannot see, or was assigned straight to someone else, that agent is not told. See <a href="#who">Who gets told</a>.</p>
+</li>
+<li>
+<p>Tap the notification. Clear Desk should open that ticket.</p>
+</li>
+<li>
+<p>Reply to the ticket as the customer: reply to the email the helpdesk sent, or add a reply through the customer web page.</p>
+<p>The phone should show "Ticket #…" with the text "The customer replied".</p>
+</li>
+</ol>
+<p>If nothing arrives, see <a href="#nothing">The switch is on but nothing arrives</a>.</p>
+
+<h2 id="who">Who gets told</h2>
+<ul>
+<li>If the ticket is assigned to an agent, that agent is told.</li>
+<li>If it is assigned to a team and not to a person, the members of that team are told.</li>
+<li>If nobody is assigned, every agent with access to the ticket's department is told.</li>
+<li>Only agents who have switched notifications on in the app, and only for the kinds they have chosen, are told.</li>
+<li>Agents marked as on vacation in osTicket are skipped.</li>
+<li>Agents whose access is limited to their own assigned tickets are not told about unassigned tickets.</li>
+<li>You are never told about something you did yourself.</li>
+<li><strong>Assignments</strong> tells the new assignee when someone else assigns a ticket to them. Claiming a ticket yourself does not send one.</li>
+</ul>
+
+<h2 id="sent">What is sent, and where</h2>
+<p>For each event, the plugin sends the delivery service only:</p>
+<ul>
+<li>the kind of event: <code>new</code>, <code>reply</code>, <code>assigned</code> or <code>note</code>;</li>
+<li>the ticket's number and its internal id;</li>
+<li>the device tokens of the agents to tell. A device token is the address Apple uses to deliver a notification to one app on one device.</li>
+</ul>
+<p>A complete example, with the token shortened:</p>
+<pre><code>{"v":1,"event":"reply","ticket":{"id":123,"number":"374502"},"devices":[{"token":"…","env":"production"}]}</code></pre>
+<p>It never sends the subject, any message text, the customer's name or email address, any agent's name, or your helpdesk's address.</p>
+<p>The delivery service is a small service run by Clear Desk's developer, hosted on AWS in Ireland. It passes the notification to Apple. It is needed because Apple only accepts notifications for an app from that app's publisher. The delivery service keeps no record of the requests it receives.</p>
+<p>What can still be worked out: the delivery service and Apple can tell that a server at a certain IP address had an event on a ticket with a certain number at a certain time.</p>
+<p>On your server, the plugin stores, for each registered device: the agent's id, the device token, and the kinds of notification that agent has chosen. It is kept in the table <code>ost_cleardesk_device</code> (with your table prefix).</p>
+<p>If the delivery service is slow or cannot be reached, the plugin gives up after a few seconds (2 seconds to connect, 4 seconds in total) and the ticket is saved as normal. A warning titled "Clear Desk notifications" is written to osTicket's system log, which you can read under <strong>Admin Panel</strong>, <strong>Dashboard</strong>, <strong>System Logs</strong>.</p>
+<p>The app's <a href="privacy.html">privacy policy</a> covers this too.</p>
+
+<h2 id="trouble">Troubleshooting</h2>
+
+<h3 id="not-listed">The plugin is not listed under Add New Plugin</h3>
+<p>osTicket did not find the plugin's files. Check each of these:</p>
+<ul>
+<li>The folder is at <code>include/plugins/cleardesk</code> inside osTicket's folder, and not somewhere else.</li>
+<li>The folder is named exactly <code>cleardesk</code>. A folder still called <code>ClearDeskPlugin-main</code> is not found.</li>
+<li>There is no folder inside a folder. <code>include/plugins/cleardesk/plugin.php</code> must exist, not <code>include/plugins/cleardesk/ClearDeskPlugin-main/plugin.php</code>.</li>
+<li><code>plugin.php</code> and <code>config.php</code> are both present (and <code>cleardesk.php</code>, which is needed later).</li>
+<li>The files can be read by the user the web server runs as.</li>
+</ul>
+<p>After fixing it, reload the "Install a new plugin" page.</p>
+
+<h3 id="app-says">The app says the plugin is needed</h3>
+<p>The <strong>Notifications</strong> section says "Needs the free Clear Desk plugin on your helpdesk. Ask your administrator." Check:</p>
+<ul>
+<li>In the admin panel, the plugin's <strong>Status</strong> is <strong>Active</strong>. The heading on the plugin's page should end "( Active )".</li>
+<li>On the plugin's <strong>Instances</strong> tab, there is an instance and its <strong>Status</strong> is <strong>Enabled</strong>.</li>
+<li>If both are right, the agent should close Settings in the app and open it again.</li>
+</ul>
+
+<h3 id="nothing">The switch is on but nothing arrives</h3>
+<p>Work through these in order:</p>
+<ul>
+<li>Notifications for Clear Desk are allowed in the iPhone's own Settings app: <strong>Settings</strong>, <strong>Notifications</strong>, <strong>Clear Desk</strong>.</li>
+<li>No Focus mode (such as Do Not Disturb or Work) is holding the notifications back.</li>
+<li>The agent did not do the action themselves. You are never told about your own actions.</li>
+<li>The ticket is not assigned to someone else. Only the assignee, or the assigned team, is told about an assigned ticket.</li>
+<li>The agent is not marked as on vacation in osTicket, and has access to the ticket's department.</li>
+<li>That kind of event is On in the plugin's <strong>Config</strong> tab, and switched on in the app.</li>
+<li>The server can reach the delivery service. Look in <strong>Admin Panel</strong>, <strong>Dashboard</strong>, <strong>System Logs</strong> for warnings titled "Clear Desk notifications", and run the <code>curl</code> check from <a href="#before">Before you start</a> again.</li>
+</ul>
+
+<h3>Notifications stopped after reinstalling the app</h3>
+<p>Reinstalling gives the app a new device token. In Clear Desk, open <strong>Settings</strong>, switch <strong>Instant notifications</strong> off, then on again.</p>
+
+<h2 id="remove">Updating, turning off and removing</h2>
+
+<h3>Updating the plugin</h3>
+<ol>
+<li>
+<p>Download the new version as in Part 1.</p>
+</li>
+<li>
+<p>Replace the three files <code>plugin.php</code>, <code>config.php</code> and <code>cleardesk.php</code> in <code>include/plugins/cleardesk</code> with the new ones. If you installed with git, you can instead run <code>git pull</code> inside that folder.</p>
+</li>
+</ol>
+<p>The plugin's settings and the registered devices are kept.</p>
+
+<h3>Turning it off for a while</h3>
+<ol>
+<li>
+<p>Go to <strong>Admin Panel</strong>, <strong>Manage</strong>, <strong>Plugins</strong>, and click <strong>Clear Desk notifications</strong>.</p>
+</li>
+<li>
+<p>On the <strong>Plugin</strong> tab, set <strong>Status</strong> to <strong>Disabled</strong> and click <strong>Save Changes</strong>.</p>
+</li>
+</ol>
+<p>Nothing is sent while it is disabled. Set it back to <strong>Active</strong> to start again.</p>
+
+<h3>Removing it completely</h3>
+<ol>
+<li>
+<p>Go to <strong>Admin Panel</strong>, <strong>Manage</strong>, <strong>Plugins</strong>. The page is titled "Installed Plugins".</p>
+</li>
+<li>
+<p>Tick the box beside <strong>Clear Desk notifications</strong>.</p>
+</li>
+<li>
+<p>Click <strong>More</strong>, then <strong>Delete</strong>, and confirm.</p>
+</li>
+<li>
+<p>On the server, delete the folder <code>include/plugins/cleardesk</code>.</p>
+</li>
+<li>
+<p>Optionally, delete the plugin's table from the database. With the default prefix the command is:</p>
+<pre><code>DROP TABLE ost_cleardesk_device;</code></pre>
+<p>If your helpdesk uses a different table prefix, use that instead of <code>ost_</code>.</p>
+</li>
+</ol>
+
+<h2>Get in touch</h2>
+<p>Questions or problems: email <a href="mailto:silas.slack@gmail.com">silas.slack@gmail.com</a>, with your osTicket version and what you see.</p>
+
+<p>Clear Desk is an independent project. It is not affiliated with, endorsed by or supported by Enhancesoft or the osTicket project. osTicket is a trademark of Enhancesoft LLC.</p>
+</main>
+
+<footer class="wrap foot">
+<span>Clear Desk</span>
+<a href="privacy.html">Privacy</a>
+<a href="support.html">Support</a>
+</footer>
+</body>
+</html>
